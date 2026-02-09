@@ -1,6 +1,7 @@
 services:
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    build: .
     environment:
       HOME: /home/node
       TERM: xterm-256color
@@ -9,11 +10,15 @@ services:
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      # Default to named volumes so this works out-of-the-box in managed
+      # environments like Dokploy. You can still override these to host paths.
+      - ${OPENCLAW_CONFIG_DIR:-openclaw_state}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-openclaw_workspace}:/home/node/.openclaw/workspace
     ports:
-      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
-      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+      # Safer default: keep the Gateway loopback-only on the host. To expose it
+      # publicly, set OPENCLAW_PUBLISH_BIND=0.0.0.0 (and firewall accordingly).
+      - "${OPENCLAW_PUBLISH_BIND:-127.0.0.1}:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+      - "${OPENCLAW_PUBLISH_BIND:-127.0.0.1}:${OPENCLAW_BRIDGE_PORT:-18790}:18790"
     init: true
     restart: unless-stopped
     command:
@@ -29,6 +34,7 @@ services:
 
   openclaw-cli:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    build: .
     environment:
       HOME: /home/node
       TERM: xterm-256color
@@ -38,9 +44,13 @@ services:
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${OPENCLAW_CONFIG_DIR:-openclaw_state}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-openclaw_workspace}:/home/node/.openclaw/workspace
     stdin_open: true
     tty: true
     init: true
     entrypoint: ["node", "dist/index.js"]
+
+volumes:
+  openclaw_state: {}
+  openclaw_workspace: {}
